@@ -1,14 +1,14 @@
-# Tessel 2 Docs
-*Looking for Tessel 1 docs? Look [here](https://github.com/tessel/t1-docs).*
+# Tessel 2 文档
+*在找 Tessel 1 的文档？ [看这里](https://github.com/tessel/t1-docs)*
 
-Tessel is an open source project under open governance. Read more [here](https://github.com/tessel/project).
+Tessel 是一个开放管理模式下的开源项目。[这里有更多介绍](https://github.com/tessel/project).
 
 ![](https://raw.githubusercontent.com/rwaldron/tessel-io/master/fritzing/tessel.png)
 
-[Fritzing part for Tessel](https://github.com/rwaldron/tessel-io/tree/master/fritzing)
+[Tessel 的 Fritzing 设计文件在这里](https://github.com/rwaldron/tessel-io/tree/master/fritzing)
 
-**Get involved:** The Tessel project welcomes contributors! Get started [here](https://github.com/tessel/project) and reach out if you have any questions.
+**深度参与:** Tessel 项目欢迎更多的贡献者！把[这个文档](https://github.com/tessel/project)作为起点，有任何问题都可以随时提出来。
 
-**Stay in the loop:** Sign up for our weekly-ish newsletter [This Week in Tessel](http://eepurl.com/EoMoP)
+**获得一手圈内信息:** 通过注册[This Week in Tessel](http://eepurl.com/EoMoP) 邮件列表，获取 Tessel 的一周动态。
 
-**License:** This documentation repo is CC-BY-SA 4.0 licensed.
+**许可:** 本文档采用 CC-BY-SA 4.0 许可协议。
