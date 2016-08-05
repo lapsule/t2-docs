@@ -1,107 +1,106 @@
-# Creating Your Own Tessel Module
-## What Is a Module?
+## 什么是 Tessel 模块?
 
->Modules should be devices with clear-cut functionality. That is to say, they should have a single, well-defined purpose or a set of closely related functions, rather than an eclectic mix of capabilities onboard. This requirement is designed to reduce complexity, cost, and power consumption and maximize reusability in hardware and software.
+>所谓模块就是指有明确功能的外围小设备。也就是说其设计目的应该是单一、目的明确的，或者是功能非常相近也可以。但不能是一个简单的各种板载功能的累加。这个设计思路有助于降低系统复杂性和成本，平衡功耗，并最大化软硬件的复用性。
 
->*[–Tessel hardware docs](https://tessel.io/docs/modules#module-design-philosophy)*
+>*[–Tessel 硬件设计文档](https://tessel.io/docs/modules#module-design-philosophy)*
 
-One of the main goals of the Tessel platform is "connected hardware as easy as npm install."
-If you need an accelerometer, Bluetooth Low Energy connection, SIM card capability, or any of the other [first-party or USB modules available][modules_page], you can literally plug, npm install, and play.
+Tessel 平台的目标之一就是 "让硬件互联变得跟一个 npm install" 一样简单。
+如果你需要一个加速器、低功耗蓝牙（BLE）或者需要给硬件增加 SIM 卡，或者其它[已经有官方支持或者 USB 模组支持的功能][modules_page]，你可以直接买一块现成模块，插上，npm instal，然后开始爽！
 
-There is also a growing library of community-contributed [third-party modules][third_party_modules]: npm libraries paired with some simple wiring instructions, built for specific pieces of hardware.
+目前已经有一个社区贡献并驱动的[第三方 npm 方式模块库][third_party_modules]: 就是说这些不同的模组的驱动、使用说明等等都已经打包好，放到正式 npm 库里面了。
 
-But what if your project needs functionality that can't be provided by one of the existing first- or third-party modules? You make your own, of course.
+但如果现有官方出的或者社区第三方做的模块都不能满足你的需求该怎么办呢？简单！自己做一个！
 
-This guide will walk you through the basics of creating your own Tessel module using our new proto-module boards.
+本文档就是来说明如何给 Tessel 2 的板子上添加一个你需要的自制模块的。
 
-### A Quick Note of Encouragement
+### 鼓励鼓励！
 
-Making your own module might seem like an overwhelming task best left to those who know things like Ohm's Law, how to solder, and why licking a 9V doesn't feel very good. But while having some electronics knowledge doesn't hurt, it's not a hard and fast prerequisite. If you know how to program, you are smart enough to figure out the basic concepts and make awesome things happen. Just trust us and read on.
+DIY 模组看起来是一个最好能甩给那些知道欧姆定律之类的家伙的任务。如何焊接，还有为什么拿舌头舔一下 9V 会让你感觉不太好... 等等这些问题都让人感觉望而却步。但事实上，只需要简单的了解一些电气基本知识就可以完全胜任这个任务，如果你恰好有会编程，而且还挺聪明很擅长搞一些酷酷的东西出来的话，继续读，一起搞就对了！
 
-## Module Design Basics
+## 模块设计基础
 
-Before you venture into the world of custom module creation, we need to cover some basics that will help guide you along the way.
+在你开始 DIY 硬件模组冒险之旅之前，我们还是先把以下几个基本的概念说清楚比较好。
 
-Every module created for the Tessel involves 5 parts:
+每个 Tessel 的外设模组都应该包含以下 5 部分：
 
-  1. Power
-  2. Communication
-  3. Software
-  4. Documentation
-  5. Sharing
+  1. 电源
+  2. 通信能力
+  3. 软件
+  4. 说明文档
+  5. 可分享
 
-If you understand how each of these fit into the module creation process, you will be well on your way to creating your own custom module. Let's start with power.
+了解了这几点之后，我们就可以开始正式进入你的模块 DIY 之旅了！让我们先从电源部分入手。
 
-### Power
-When dealing with anything in electronics, whether it be sensors, displays, buttons, or servos, you have to provide power. Everything needs a power source, and Tessel modules are no exception. In its simplest form, you can think of a power source as two connections; a positive voltage and a ground connection. These connections are provided on each Tessel port.
+### 电源
+在电子元件的世界里，无论是各种感应器、显示屏、按键还是舵机，首要考虑的都是供电。所有这些都需要供电， Tessel 的外设模组也不能例外。在这个简单的例子中，你可以把电源看成从 Tessel 引出的，一正一负两根线。
 
-The main Tessel board can be powered several ways, but regardless of how you provide power to the main board it ultimately turns that source into 3.3V. That's the native "voltage language" of the Tessel. It likes to speak 3.3V to everything if possible.
+Tessel 本身可以由几种不同的供电方式，但无论你选的是那种，最终供到板子上的都是 3.3V 的电。有点类似于 Tessel 的 "电压语言"，它跟所有东西都是只讲 3.3V 的话。
 
-One of the nice things about the proto-module is that the 3.3V and ground connections are exposed as two rails that run along each side of the module as seen below. This allows you to easily power your module components.
+这块原型底板最好的地方之一就是，3.3V 电压和接地被放在了板子的两端，就像下图这样，你可以轻易的给你自己设计的模块选择供电。
 
 <h1 style="text-align:center;"><img src="https://s3.amazonaws.com/technicalmachine-assets/tutorials/diy-module-guide/diymod_power.jpg" /></h1>
 
-<p style="text-align:center;"><em>Proto-module power rails</em></p>
+<p style="text-align:center;"><em>原型底板上，电源被分在了两头</em></p>
 
-### Special Considerations
-If all of the components on your custom module operate at 3.3V, then your power design is extremely simple. You just use the 3.3V and ground rails and connect your components accordingly (the [custom screen module](#screen_example) below is a good example). Sometimes, however, you may encounter a situation where 3.3V is not what you need, like in the case of the [servo module][servo_module].
+### 特别考量
+如果你自制的模组上，所有的元器件都是工作在 3.3V，那么你的模组设计就会非常简单。你要做的就是简单的把电源两根线接上，然后把相应的引脚接上就可以了(比如像底下介绍的[自制显示模组](#screen_example)）。但更多的时候，你面临的是很多非 3.3V 电压的元器件，比如像[舵机模组][servo_module]这个示例。
 
-Many servos like to operate at 5V. That's their native "voltage language" and so the 3.3V provided by the Tessel isn't ideal and, in many cases, just won't work. Servos can also draw a lot of current, which may overwhelm the Tessel's power supply. To solve this problem, you'll notice that the servo module has a DC barrel jack on it that allows you to plug in a 5V adapter to provide sufficient power to the connected servos.
+常见的舵机都是工作在 5V 电压。这是它们的 “电压语言”，所以这点跟 Tessel 的 ”电压语言“ 接不上，硬接的话会导致舵机无法正常工作。舵机耗电一般都比较多，有可能会占用 Tessel 大部分的电源供应。为解决这个问题，在舵机模块边上我们增加了一个 5V 的电源接口用来外接供电。
 
 <h1 style="text-align:center;"><img src="https://s3.amazonaws.com/technicalmachine-assets/tutorials/diy-module-guide/servo_jack_identified.jpg" /></h1>
 
-<p style="text-align:center;"><em>DC Barrel Jack on the Servo Module</em></p>
+<p style="text-align:center;"><em>舵机模组上的外接供电口</em></p>
 
-From the [servo module schematic][servo_schematic], we can see that communication is accomplished with the normal I2C lines, which operate at 3.3V, but servo power is provided via schematic component J2, which is the barrel jack.
+从[舵机模块文件][servo_schematic]上看, 多节模块是通过 I2C 接口完成通讯的，提供的电压是 3.3V，但舵机模组用的是通过 J2 接口接入的 5V 电压。
 
-This guide isn't meant to be a comprehensive power reference, but we just want to point out that if you have any components on your custom module that work outside of the 3.3V realm, you will [need to design for it][level_shifting]. To simplify your module design, we recommend using 3.3V components where possible.
+本文档并不像在电源部分纠缠不清，但必须再次强调一下，如果你的模组需要外接电源，那么你必须用到[电压切换][level_shifting]。为了简化模块设计，我们强烈建议你使用 3.3V 电压。
 
-### The Power Warnings
-Here are some items to remember when working with power in electronics.
+### 关于电源的几个警告
+以下是几个跟电子元器件打交道时，涉及到电源需要注意的点。
 
-  * **ALWAYS** unplug your Tessel and any external power before making or altering connections.
-  * Don't mix voltages unless you know what you're doing. For example, if you put 5V on any of the module pins, you can ruin your Tessel.
-  * Never connect the positive voltage directly to ground. This is called a [short circuit](http://en.wikipedia.org/wiki/Short_circuit) and can ruin components and your day.
-  * Always exercise caution and verify that you have hooked everything up correctly before plugging in your Tessel.
+  * 插拔 Tessel 或者外设模块之前 ***一定要*** 先断电。
+  * 不要随便提高供电电压，除非你明确的知道自己在做什么，比如假设你直接给 Tessel 接入 5V 电压极有可能把它烧毁。
+  * 绝对不能直接把电源正极接地。这会造成[短路](http://en.wikipedia.org/wiki/Short_circuit)，从而验证破坏你的板子和心情。
+  * 接入 Tessel 之前一定先想清楚并小心操作。
 
-## Communication
+## 通讯
 
-Once you have decided how you are going to power your custom module, it's time to decide how the main Tessel board will talk to it.
+一旦决定好了如何给自有模组供电，接下来就需要搞定模组和 Tessel 之间的通讯问题了。
 
-In the world of web communication, there are standards like HTTP, HTTPS, and FTP that allow different systems to talk to each other in well-defined ways. The same concept exists in the hardware world and the Tessel supports four standard communication protocols for talking to modules.
+在互联网的世界里，有标准的 HTTP、HTTPS、FTP 等等这些现成的协议供不同的系统之间完成通讯。其实在硬件的世界里也同样存在着类似的协议， Tessel 支持以下 4 种比较常见的协议用来跟模组通讯。
 
   * [GPIO][comm_gpio]
   * [SPI][comm_spi]
   * [I2C][comm_i2c]
   * [UART][comm_uart]
 
-Because the Tessel [does most of the heavy lifting][hardware_api] for all of these, you don't need to be an expert to use them in your custom module. However, if you'd like to learn a little more, we've [provided a simple overview of each](https://tessel.io/docs/communicationProtocols).
+因为 Tessel 把大部分[协议设计的累活儿都干了][hardware_api]，所以对你来说在设计自己模块的时候不太需要过于关注这部分，但如果你喜欢更深入的钻研的话，这里有一份[关于这4个协议在 Tessel 实现的简单说明文档](https://tessel.io/docs/communicationProtocols).
 
-### So Which Communication Protocol Should I Use?
-Knowing that there are four communication options available to you, which should you use for your custom module? The good news is that this will usually be decided for you based on the type of module you are creating. For example, most [PIR sensor modules][pir_project] will set a pin high when motion is detected, which can be read with a simple digital input (GPIO). The same applies to sensors. For example, the Si7020 temperature and humidity sensor on the [Climate Module][climate_module] communicates via the [I2C protocol][comm_i2c]. Usually sensors will only support one protocol– so the decision is easy, you use that one.
+### 那么，到底哪种协议是我需要的呢？
+既然有 4 种协议可选，那到底哪个才是最适合我们模组的呢？好消息是这个问题基本取决于你要做的是那类的模组。比如说，对[红外探头][pir_project] 模组来说，当它检测到有物体移动时会拉高一个 pin 叫的电压，这可以让你很容易的通过 GPIO 方式获取，类似的例子对各种传感器基本都适用，比如在[气候传感模组][climate_module]上的 Si7020 温湿度传感器就是通过 [I2C 协议][comm_i2]通讯的。一般来讲，像传感器这样的硬件基本都只支持一种协议，所以问题简单了，用就行了。
 
-You will find some modules that support both SPI and I2C, and either will work just fine with the Tessel. As a general rule of thumb, we recommend you favor the SPI protocol in these scenarios as it eliminates the risk of I2C address collisions with other connected I2C modules.
+除此之外，还有些硬件是同时支持 SPI / I2C 接口的，这种随便选哪个都行。我们的建议是能选 SPI 的就先用 SPI，留着 I2C 可以给其他可能的扩展。
 
-## Software
+## 软件
 
-Once you have the power and communication all worked out and connected, it's time to start writing JavaScript to talk to your module. This is where the open-source nature of the Tessel really comes in handy. We've already used all of the possible communication protocols in [our modules][modules_page] and the [code is free to look at][tessel_github] and copy.
+上面电源和通讯的问题搞定之后，接下来就可以开始用 JavaScript 来跟模块通讯了。这就是 Tessel 作为开源硬件的真正魅力所在。我们在[官方模组][modules_page]中用到了所有的这 4 种协议，并在 [github 中开源][tessel_github]了出来，任何人都可以拷贝、编辑、使用。
 
-Design an API for working with your module so that it's easy for others to integrate into their projects. As a general rule, top priority is intuitive interaction. Second priority is exposing as many features as you can. You can find a lot of great information about organizing your project and writing an API in [Making a Tessel-style Library for Third-Party Hardware][third_party_doc].
+为自己的模组设计好一个完整的 API 可以帮助别人更好的把模组集成到他们的工程中。第一原则是尽可能的让接口简单明了，第二原则是在第一原则的基础之上尽可能多的暴露更多接口。你可以在[为 Tessel 提供定制模块并编写 Tessel 风格的文档][third_party_doc]一文中找到更多的有用信息。
 
-## Documentation and Sharing
+## 文档和分享
 
-Once you have a working module, it's time to share the good news with everyone so other people can build amazing things with your work. We recommend doing a few things to share it with the community as outlined below. This helps create a consistent feel across all Tessel modules, whether they are official modules or submitted by the community.
+当你完成上面的几步之后，接下来就可以让更多的人了解你的成果，让更多的人使用你的模组了。我们推荐你做以下几步来让社区共享你的劳动成果。保持第三方模组和官方模组的产品、文档风格一致是一件对所有人都很重要的事。
 
-### Create A Git Repo
-Having your code in a git repo and available online makes it easy for others to grab your code and start using it in their projects. To help you get started we've created a template repository that you can use as a starting point.
+### 创建一个 Git 库
+把你的代码放到一个 git 库中，让更多的人可以访问到，并加入到他们的工程中去，为此我们准备了一个实例库，你可以从 fork 这个示例库开始创建你自己的 git repo.
 
-[Custom Module Git Repo Template][repo_template]
+[第三方模组软件 git 库示例][repo_template]
 
-### Document It
-You may have just created the world's most amazing Tessel module, but how is anybody going to know about it or use it? Once you've hashed out the API and everything is working, it's important to document its use so others can easily apply your work to their projects. The best way to do this is to use the [README template][readme_template], which includes things like how to install the module, example usage, and API information.
+### 写文档
+可能你创建了世界上最牛掰的 Tessel 模组，但如果没有文档说明怎么用，没人了解怎么办？当你搞定了所有的硬件、软件和 API 之后，写一份明了的文档告诉别人怎么使用就变成了一个非常重要的任务。这事儿可以从开始创建一个包含如何安装使用、简单示例和 API 说明的 [README][readme_template] 开始。
 
-### Publish Your Code on NPM
-Once your git repo is ready and you've documented your module, this step is really easy and makes your module fit the Tessel motto of "connected hardware as easy as npm install." If you've never published code to NPM before, you can get started with just four lines of code (run in a shell window).
+### 在 NPM 中发布你的代码
+上面的步骤都完成之后，接下来就可以完成 Tessel 理念里面的 "让硬件连接像 npm install 一样简单"！ 如果你之前没有向 NPM 提交过代码，可以从下面几行命令开始：
 
     npm set init.author.name "Your Name"
     npm set init.author.email "you@example.com"
@@ -109,74 +108,77 @@ Once your git repo is ready and you've documented your module, this step is real
 
     npm adduser
 
-This sets up your NPM author info. Now you're ready to create your package.json file. There is one in the repo template but we suggest creating it by running npm init from within the project directory.
+以上几行命令设定了你在 NPM 的作者信息。接下来就是创建你的 package.json 文件了，这个文件应该放在你的代码库目录下，但我们推荐你先用 npm init 命令，在工程目录下生成它。
 
 ```
 npm init
 ```
 
-Edit your package.json file to include a name, version, and description. We also highly recommend adding "tessel" as a keyword so that other Tessel users can easily find your work. Most of the package.json file is self-explanatory and follows the [npm package.json standard][package_json_standard] with the exception of the **hardware** member.
+编辑 package.json 文件里面的相关信息，比如你的名字、软件版本号、软件说明等等。在关键词一栏里，我们推荐加上 "tessel"，这样其他的 Tessel 用户就可以很方便的通过 tessel 关键词检索到你的模组信息。 package.json 的结构很清晰，遵循了[npm package.json 标准][package_json_standard]， 并且加入了 **硬件** 部分。
 
 <h1 style="text-align:center;"><img src="https://s3.amazonaws.com/technicalmachine-assets/tutorials/diy-module-guide/package_hardware_section.png" /></h1>
 
-<p style="text-align:center;"><em>**hardware** section of package.json</em></p>
+<p style="text-align:center;"><em>package.json 里的 **硬件说明部分** </em></p>
 
-This is a Tessel-specific item that you must add manually and is a list of files and folders in your project that you would like to exclude when code is pushed to your Tessel.
+这是一个 Tessel 特定项，你需要手动添加一下，里面列出来了一个文件和文件夹的清单，在你提交到 NPM 的时候这些文件和文件夹不会被提交。
 
-Once your package.json file is complete you're ready to publish your code. Run the following command from the top level directory of your project.
+创建好 package.json 之后，就可以正式发布了。在项目的根目录下执行下面的命令
 
     npm publish ./
 
-### Create a Project Page
-The [Tessel Projects page][tessel_projects] is a way to share your module directly with the Tessel community. You simply provide a few pieces of information, a picture, and can even use your README.md file from your Git repo as the contents.
+### 创建一个工程项目主页
+[Tessel 工程项目页][tessel_projects]是一个向 Tessel 社区分享项目的好方式。只需要简单的提供几点信息、一张图片或者直接用你的 readme.md 文件作为内容也行。
 
-### Submit Your Module
-We're always looking to add modules to our [third-party module list][third_party_modules] so if you'd like your custom module to be listed at [tessel.io/modules][modules_page] then fill out this form and we'd be happy to review it.
+### 提交你的模组
+我们会一直很欢迎第三方提交模组到[第三方模组列表 ][third_party_modules]，所以，如果你想让你的模组出现在 Tessel 的模组列表页 [tessel.io/modules][modules_page]，那就赶紧去填个表吧，我们非常高兴可以早日看到它。
 
-[Third-Party Module Submission Form][module_submission]
+[第三方模组提交表单][module_submission]
 
-A great example of using this module-creation pattern can be found in [Making a Tessel-style Library for Third-Party Hardware][third_party_doc].
+[为 Tessel 提供定制模块并编写 Tessel 风格的文档][third_party_doc] 里面详细的描述了以上过程。
 
-## Your First Custom Module
-So now that we've described the pattern for making a custom module, let's walk through creating a very simple module using that pattern. The Tessel has a spare button on the main board, but maybe you'd like to add one as a module. Kelsey did [a great writeup on adding a button to the GPIO bank][orig_button_project_page] so let's use her work to take it one step further using a proto-module.
 
-### Power
-You might not think of a button as needing power, and you're right, sort of. While the button itself doesn't need power to function, we can connect our button in such a way that it uses the power connections to create high and low states on a GPIO pin.
+## 第一个 DIY 模组示例
+到目前为止，我们已经知道了如何定制一个模组，让我们按照这个思路来定制一个简单的示例。在 Tessel 板子上有一个简单的按钮，但或许你会想用模组的方式添加更多，Kelsey 已经做了一篇非常好的[通过 GPIO  添加按键][orig_button_project_page]的文档，接下来让我们按照她的说明做一个出来。
 
-GPIO pins on the Tessel will always read high/truthy with nothing connected, because internally (inside the main Tessel chip), they are pulled up to the 3.3V supply. That's our positive connection.
+### 电源部分
+你可能觉得一个按键不需要电源，部分正确，按键本身确实不需要电源，我们用按钮来控制电源从而在 GPIO 上面产生不同的高低电平。
 
-The other power connection is ground, which we'll connect to one side of our button. It doesn't matter which side, because a button is just a momentary switch that creates and breaks a connection. You can't hook it up backward. We'll get to connecting the other side of the button in a minute.
+在 Tessel 上，所有没有连接的 GPIO 都是高电平，因为在 Tessel 内部，主芯片把这样的所有引脚都输出了 3.3V 正电压。
 
-### Communication
-As mentioned above, normally your communication protocol is determined by your module. In the case of a button, we use a digital GPIO pin because we want to read the state of the button.
+另一个电源线是接地，我们把它街道按键的另一个引脚上。接那个脚没有要求，因为按键部分左右，只是负责电流的开断。
 
-Each port on the Tessel has [several digital I/O pins that can serve this purpose](https://tessel.io/docs/hardwareAPI#pin-mapping), and you are free to pick any one you like because it doesn't matter.
+### 通讯部分
+如上面提到的，通讯部分是由你的模组决定的。在按键这个例子中，我们选用 GPIO，因为我们希望读取按键的状态。
 
-We're going to choose port A's pin 1, which is what we will hook up to the other side of the button. When the button is not pressed, our input pin will read high, or true. When we press it, we are making a connection between our GPIO pin and ground, which will cause a low state to be present on the input pin. This is what the design looks like.
+Tessel 的两个 port 上都有不少这样的[数字 I/O pin 可以完成这个任务 ](https://tessel.io/docs/hardwareAPI#pin-mapping)，你可以随便选两个你喜欢的。
+
+在这个例子中，我们选 port A 里面的 pin 1，我们会把这个 pin 连到按键的一段，在按键没有被按下时，该 pin 脚的状态是高电平，或者是 true，当我们按下这个按键，就是给该 pin 脚接地了，然后状态就变成了低电平，正如我们设计所想。
 
 <h1 style="text-align:center;"><img src="https://s3.amazonaws.com/technicalmachine-assets/tutorials/diy-module-guide/switch_schematic.png" /></h1>
 
-<p style="text-align:center"><em>Schematic of button connections</em></p>
+<p style="text-align:center"><em>按键连线图</em></p>
 
 <h1 style="text-align:center;"><img src="https://s3.amazonaws.com/technicalmachine-assets/tutorials/diy-module-guide/button_module_angle.jpg" width=300 /></h1>
 
-<p style="text-align:center"><em>Soldered together on a proto-module board.</em></p>
+<p style="text-align:center"><em>焊接好的模组板</em></p>
 
-Don't let the soldering part scare you. Soldering components like this onto a proto-module is a little harder than learning to use a hot glue gun, but not a lot harder.
-[This tutorial from Sparkfun](https://learn.sparkfun.com/tutorials/how-to-solder---through-hole-soldering) is a great place to start learning soldering.
+不要被焊接板吓到，这种简单的工序唯一有挑战的就是如何使用热喷胶枪，但这也是小菜一碟。
 
-Let's go ahead and plug our module into Port A. **Remember to never make connections while your Tessel is powered up. Always unplug it first.**
+[这篇 Sparkfun 来的帖子](https://learn.sparkfun.com/tutorials/how-to-solder---through-hole-soldering) 是一个学习焊接的很好切入点。
 
-### Software
-With everything hooked up, it's time to write some Javascript.
+让我们继续，把模块插上，**注意！！绝不要在 Tessel 上电的时候插拔模块！**
 
-Actually, we're going to reuse the code from Kelsey and modify it just a bit. Since she followed the style guidelines and shared her work on NPM, we actually don't have to write the bulk of the code. She's even provided a [Quick Start guide](https://github.com/Frijol/tessel-button#quick-start-i-just-want-a-button) in her documentation, so we'll use that.
+### 软件部分
+以上步骤都完成之后就可以开始 coding 了。
 
-  1. Install the tessel-gpio-button package. This will allow us to reuse Kelsey's work.
+事实上我们决定直接用 Kelsey 的代码，稍作改动，因为她遵循了编码风格并且把代码放到了 NPM 上，我们其实不需要写什么，更好的是她甚至还在文档中提供了一份[快速指引说明](https://github.com/Frijol/tessel-button#quick-start-i-just-want-a-button)，让我们直接用就好了。
+
+
+  1. 安装 tessel-gpio-button 包，这样我们就可以复用 Kelsey 的成果了。
 
     ```npm install tessel-gpio-button```
 
-  2. Create a file named **myButton.js** and copy her Quick Start code into it. It should look like this:
+  2. 创建一个名字类似 **myButton.js** 这样的文件，并把她在快速说明文档中提到的部分拷贝进去，差不多像这样：
 ```js
     // examples/button.js
     // Count button presses
@@ -200,160 +202,160 @@ Actually, we're going to reuse the code from Kelsey and modify it just a bit. Si
     });
 ```
 
+这段代码可以执行的很好，但还是有两个地方我们可以继续优化，看出来了吗？
 
-This almost works right out of the box. We just need to make two small adjustments. Do you see them?
+首先，我们不要用 "require('../')" 这种方式引入包，更好的方式是直接使用包名: require('tessel-gpio-button')。
 
-First, to include her module we won't use "require('../')." Instead we'll include the module directly with require('tessel-gpio-button').
+第二，代码中她是用的 Tessel 1 的 G3 这个 pin，我们模块上焊接的是 Port A 里面的 pin 1，所以代码需要稍微改一下，需要改的也就是 _myButton_ 的定义部分，改成这样：
 
-Second, she hooked her button up to the G3 pin on the Tessel 1's GPIO bank, but we've hooked our proto-module up to Port A on Tessel 2 and used pin 1. So all we have to change is the line where _myButton_ is defined. We'll change it to be:
 
 ```js
 var myButton = buttonLib.use(tessel.port['A'].pin[1]);
 ```
 
-Save your changes and test it out.
+保存，运行试试。
 
 ```
 tessel run myButton.js
 ```
 
-Every time you push your button it should log to the console.
+每次你按按键的时候都应该有 log 输出。
 
-Congratulations! You just created your first custom module for the Tessel.
+恭喜你！你已经完成了你的第一个 Tessel 外设模组的设计！
 
-### Documentation and Sharing
-We sort of cheated for our first module; Kelsey had already created an NPM package that we could reuse, so there wasn't really anything to document or share on the software side. There is nothing wrong with that. In fact, the less code you have to write, the better. This is a great example of how taking the time to document and share your work benefits the entire community.
+### 文档和分享
+上面第一个模组严格来讲其实不能算是数，因为 Kelsey 已经创建好了 NPM 包我们可以拿来重用，尤其是我们不需要写文档，也不需要做软件分享。这没什么不对的，写的代码越少越好，下面是一个很好的例子说明如何写文档、如何在社区中分享代码。
 
-What we can do though is create [a project page][button_project_page] showing how we took Kelsey's button to the next level in the form of a plug-in module. We created the physical module. It's a simple module, but we should document it in case someone else wants a button module like ours.
+我们可以通过创建[一个项目页面][button_project_page] 的方式说明我们该如何把 Kelsey 的按键模组推进到下一步，做成插件模组。我们做出来了模组，接下来我们应该写好相关文档让其他需要的人来使用它。
 
-[Custom Button Module Project Page][button_project_page]
+
+[自定义按键模组实例页面][button_project_page]
 
 <a name="screen_example"></a>
-## Custom Screen Module
-Now that you have a simple module under your belt, it's time to level up. To date, the module that people have requested the most is a screen module. Displays are tricky because they come in so many flavors. There are simple 7-segment displays, LCD displays, OLEDs, resistive touchscreens, capacitive touchscreens, and more. This is a great use case for a custom module.
+## 自定义屏幕模组
+上面这个简单的小项目我们已经有点儿经验了，是时候进入到下一步。目前大家最迫切的是想要一个屏幕的模组。显示屏之所有有点复杂是因为有好多种方式可选，包括 7 段数码管、LCD 显示、OLED 显示、电阻触摸屏，电容触摸屏等等，显示模组是一个很好的拿来自定义的模组。
 
-One of the popular screen modules in embedded projects is the Nokia 5110, because of its simple interface and low cost. Let's see how we'd create a module for it by following the same pattern as before.
+在嵌入式项目中，比较有名的是 Nokia 5110 的屏，得益于该屏幕的简单交互特性，和低成本，让我们看看如何按照上面的流程来创建一个显示模组。
 
-For this example we'll use the [Nokia 5110 breakout from Sparkfun][nokia_sparkfun], but you could also use the [Adafruit version of the screen][nokia_adafruit] or just try to snag one [on Ebay][nokia_ebay]
+我们用[Sparkfun 的 Nokia 5110 拆机屏][nokia_sparkfun]来做示例，当然你也可以用 [Adfruit 版的屏幕][nokia_adafruit] 或者[从 Ebay 上买一个][nokia_ebay]也可以。
 
 <h1 style="text-align:center;"><img src="https://s3.amazonaws.com/technicalmachine-assets/tutorials/diy-module-guide/nokia5110.png" /></h1>
 
-<p style="text-align:center"><em>Nokia 5110 Graphic LCD</em></p>
+<p style="text-align:center"><em>Nokia 5110 LCD 显示屏</em></p>
 
-### Power
-The 5110 has a listed power supply range of 2.7V to 3.3V, which means any voltage in between (inclusive) is sufficient to power the screen. Since the Tessel ports have a 3.3V supply pin we don't have to do anything special to hook it up. All we need to do is connect the screen VCC, or positive pin, to a 3.3V rail on the proto-module and the GND on the screen to a GND rail.
+### 电源部分
+5110 可以支持从 2.7V 到 3.3V 的电压，也就是说只要在这个区间的所有电压都可以驱动该屏幕。因为 Tessel 的 port 已经有 3.3V 输出，所以我们不需要再为了挂接它而做额外的工作。我们需要做的就是把屏幕的 VCC或者正极电源接到相应的正极，GND 接地即可。
 
-Because of the screen's size, we'll use one of the double-wide proto-modules this time, even though we'll only use a single port to connect everything.
+由于屏幕尺寸的问题，我们会用到两个 port 来接这个模块，虽然只用一个 port 就可以把所有东西接好。
 
 <h1 style="text-align:center;"><img src="https://s3.amazonaws.com/technicalmachine-assets/tutorials/diy-module-guide/doublewide_module.jpg" /></h1>
 
-<p style="text-align:center"><em>Double-Wide Proto-Module</em></p>
+<p style="text-align:center"><em>双面模组</em></p>
 
-### Communication
-Just like in the button example, the communication protocol for the screen has already been chosen for us. The Nokia 5110 uses a slightly modified version of [SPI][comm_spi] to communicate with a parent controller, namely the Tessel in our case.
+### 通讯部分
+像按键模组一样，通讯部分也无需费心选择， Nokia 5110 用了一个简单修改过的 [SPI][comm_spi] 协议来完成跟 Tessel 之间的通讯，我们直接用就好。
 
-In addition to the normal SPI protocol, the 5110 has an extra pin involved (**D/C**) that tells the screen whether the data we are sending via SPI is a special command or actual screen data.
+相比普通的 SPI 协议，5110 多一个 **D/C** pin 脚，用来区分屏幕我们发送过去的数据是普通的 SPI 命令还是实际的显示数据。
 
-The D/C pin is controlled by a simple high or low signal, which is a perfect job for one of the GPIO pins.
+这个 D/C pin 脚是用简单的高低点评来控制的，用 GPIO 完全可以胜任。
 
-The following table shows all of the communication connections available on our screen and how we'll attach them to the Tessel port.
+下表里面说明了所有的通讯细节，和我们该如何对接到 Tessel 的 port 上去。
 
-| Nokia 5110 Pin | Proto-Module Connetion                   |
+| Nokia 5110 Pin | 示例模块接法                               |
 |----------------|------------------------------------------|
 | SCE            | G1                                       |
-| RST            | Connected to 3.3V through 10K resistor   |
+| RST            | 通过一个 10K 电阻连到 3.3V 上去              |
 | D/C            | G2                                       |
 | MOSI           | MOSI                                     |
 | SCLK           | SCK                                      |
-| LED            | Connected to G3 through 330 ohm resistor |
+| LED            | 通过一个 330 ohm 的电阻连到 G3              |
 
-#### Design Note
-The Nokia 5110 has 4 connections that can utilize GPIO pins for functionality. The D/C (data/command) and SCE (chip select) pins have to be used to get data to the screen. That leaves just one GPIO pin on the port with RST and LED left unconnected. You have a few options here.
+#### 设计部分
+Nokia 5110 有 4 个连接可以直接用 GPIO 来接，D/C 和 SCE pin 需要用来获取显示数据。连完后就剩下一个 GPIO 和一个 RST 和 LED 了，有这么几个可选的办法。
 
-  1. Wire RST to 3.3V through a 10K resistor which prevents you from resetting the screen in code. This allows you to control the backlight with the free GPIO pin.
-  2. Wire LED to 3.3V through a 330 ohm resistor (to limit current) which will permanently turn on the backlight. This leaves a GPIO free that can be used to reset the screen via Javascript.
-  3. Since we're using the double-wide, you could use a GPIO pin from the adjacent port and have use of both LED and RST
-  4. Connect SCE (chip select) to ground, which frees up a GPIO so you can control both LED and RST. Holding the chip select low, however, makes it so that **no other SPI device** (including other Tessel modules that use SPI e.g., the Camera module) can be connected to the Tessel on any other port.
+  1. 用一个 10K 的把 RST 和 3.3V 连接，可以保护你避免在代码中重置屏幕，并可以通过剩余的 GPIO 来控制屏幕背光。
+  2. 用一个 330 ohm 的电阻连接 LED 和 3.3V 可以保持背光常亮，这样做可以留一个 GPIO 口，以便在 JavaScript 里面用来重置屏幕。
+  3. 因为我们用了两个 port，所以你可以用临近的 port 上的 GPIO 来接 LED 和 RST。
+  4. 把片选 pin （SCE）接地，空出来一个 GPIO 可以用来控制 LED 和 RST，让片选 pin 保持低电平。这样确保 **没有其他的 SPI 设备可以同时连到 Tessel 上来**
 
-We decided to go with option 1 because there isn't really a need to reset the screen in most cases and it allows control of the backlight with a GPIO pin. This is another great thing about custom modules. You can design it however you want to fit your project needs.
+我们确定采用第一个方案，因为其实基本不需要在代码中 reset 屏幕，而且这个方案允许我们通过那条 GPIO 来控制背光，这是自定义模组的另一个好处，你可以自有决定这个模块如何适应你的项目。
 
-We hooked everything up using the [Graphic LCD Hookup Guide][screen_hookup_guide]. We recommend testing everything with a [breadboard](https://learn.sparkfun.com/tutorials/how-to-use-a-breadboard) before you solder everything in place, just to make sure it works the way you expect it to.
+我们按照 [Graphic LCD Hookup Guide][screen_hookup_guide] 的指引把所有部件连接起来。然后，在你做焊接之前，最好是能通过一片[面包板](https://learn.sparkfun.com/tutorials/how-to-use-a-breadboard) 测试一下，确保模组是按照你希望的方式工作的。
 
-Here is what the module looks like soldered to the double-wide proto-module.
+焊接完成之后模组应该长成这个样子。
 
 <h1 style="text-align:center;"><img src="https://s3.amazonaws.com/technicalmachine-assets/tutorials/diy-module-guide/screen_soldered.jpg" /></h1>
 
 <p style="text-align:center"><em>Nokia 5110 soldered to a large proto-module board</em></p>
 
-### Software
-With the screen hooked up, it's time to start writing code. We'll follow the pattern found in the [Git Repo Template][repo_template] and start by creating a directory called **tessel-nokia5110** and cd into that directory. Next, we'll use `t2 init` to create **index.js** which is where we'll write our API using [the example index.js template][index_template] as a guide.
+### 软件部分
+连上屏幕线之后就可以开始写代码了。我们遵从 [Git Repo Template][repo_template] 的规则，创建一个名字为 **tessel-nokia5110**  的文件夹，进到这个而文件夹，然后运行 `t2 init` 来创建 **index.js** 文件，在该文件中我们会按照 [the example index.js template][index_template] 的指引来完成我们的 API 调用。
 
-Because this screen is so popular, there are lots of code examples and libraries online for interacting with it. We don't need to reinvent the wheel; we just want to control the screen with JavaScript.
+Nokia 的这个模组非常的流行，网上有大量的示例代码和相关库我们可以拿来交互，所以没必要重新发明轮子，我们要做的是，用 JavaScript 来控制这块屏幕。
 
-We took a [simple Arduino library][screen_arduino_code] for this screen and [ported it to JavaScript][screen_github].
-Our API is very simple and exposes just one event and a few methods.
+我们拿 [simple Arduino library][screen_arduino_code] 来控制这个屏幕，并把它改造成 [支持 JavaScript 的版本][screen_github]。我们的 API 非常简单，只暴露了一个时间和几个方法。
 
-#### Event
-Nokia5110.**on**('ready', callback(err, screen)) - Emitted when the screen object is first initialized
+#### 事件处理
+Nokia5110.**on**('ready', callback(err, screen)) - 当屏幕对象被初始化完成之后调用。
 
-#### Methods
-Nokia5110.**gotoXY**(x,y,[callback(err)]) - Sets the active cursor location to (x,y)
+#### 方法处理
+Nokia5110.**gotoXY**(x,y,[callback(err)]) - 把游标设置到 (x, y) 位置。
 
-Nokia5110.**character**(char, [callback(err)]) - Writes a single character to the display
+Nokia5110.**character**(char, [callback(err)]) - 写一个单字符到屏幕上。
 
-Nokia5110.**string**(data, [callback(err)]) - Writes a string to the display
+Nokia5110.**string**(data, [callback(err)]) - 写一个字符串
 
-Nokia5110.**bitmap**(bitmapData, [callback(err)]) - Draws a monochrome bitmap from _bitmapData_
+Nokia5110.**bitmap**(bitmapData, [callback(err)]) - 从 _bitmapData_ 取一个单色图来显示
 
-Nokia5110.**clear**([callback(err)]) - Clears the display
+Nokia5110.**clear**([callback(err)]) - 清屏
 
-Nokia5110.**setBacklight**(state) - Turns the backlight on if _state_ is truthy, off otherwise
+Nokia5110.**setBacklight**(state) - 如果 _state_ 为 true 则打开屏幕背光，否则关上。
 
-### Documentation
-Now that the module is connected up and the software is working, it's time to document its use.
+### 文档
+现在模组已经可以正常互联并工作了，是时候完善一下相关文档了。
 
-We can't stress enough how important this is, and it really only takes a few minutes once you've defined everything. Just think of all the times you've needed a piece of code and found a beautifully documented example that had you up and running in minutes. Share that love with others when you create your own modules, no matter how trivial you think they are.
+关于文档我们已经强调过几次其重要性了，而且只需要花费几分钟就可以搞定。不管你自己认为多么微不足道的地方，别人都可能因为不清楚而无法使用，所以赶快把文档完善起来吧！
 
-In our case, we'll take the [template README.md file][readme_template] and [add some notes for getting started as well as document our API][screen_github].
+在当前这个例子中，我们会拿 [README.md 文件][readme_template] 为例，[为我们的 API 创建一个结构良好的文档][screen_github].
 
-We'll also create an **examples** folder to show how the module can be used.
+接下来，我们会创建一个 **examples** 文件夹来说明如何使用这个模组
 
-### Sharing
-Now it's time to share our new creation with the world by:
+### 共享
+是时候跟世界共享一下你的成果了：
 
-  * Creating a [git repo and pushing the code online][screen_github]
-  * [Publishing the module to NPM][screen_npm]
-  * Creating a [project page][screen_project_page] for it
+  * 创建一个[Git 仓库并在线上传相应代码][screen_github]
+  * [提交模组到 NPM][screen_npm]
+  * [为自己的模组创建一个项目工程页][screen_project_page]
   * [Submitting][module_submission] it to the [third-party module list][third_party_modules]
 
 <h1 style="text-align:center;"><img src="https://s3.amazonaws.com/technicalmachine-assets/tutorials/diy-module-guide/screen_connected.jpg" /></h1>
 
-<p style="text-align:center"><em>Finished screen module</em></p>
+<p style="text-align:center"><em>完成的显示模组</em></p>
 
-### Resource List
-To help you get started creating your own custom modules, here is a list of the resources we used to put this tutorial together.
+### 资源列表
+以下资源可以帮你更快的开始定制自己的模组。
 
-#### Power
-  * [Powering Your Tessel][power_options]
-  * [Level Shifting][level_shifting]
+#### 电源
+  * [Tessel 的电源][power_options]
+  * [电压切换][level_shifting]
 
-#### Communication
-  * [Tessel Module Communication Protocols][comm_protocols]
+#### 通讯
+  * [Tessel 模组通讯协议][comm_protocols]
 
-#### Software
-  * [Making a Tessel-style Library for Third-Party Hardware][third_party_doc]
-  * [Tessel Hardware API][hardware_api]
+#### 软件
+  * [为 Tessel 提供定制模块并编写 Tessel 风格的文档][third_party_doc]
+  * [Tessel 硬件 API][hardware_api]
   * [All first-party module code on Github][tessel_github]
 
-#### Documentation
-  * [Git Repo Template][repo_template]
-  * [README.md Template][readme_template]
+#### 文档
+  * [Git 软件仓库模板][repo_template]
+  * [README.md 模板][readme_template]
 
-#### Sharing
-  * [Publishing to NPM Tutorial][npm_tutorial]
-  * [package.json Standard][package_json_standard]
-  * [Tessel Project Page][tessel_projects]
-  * [Third-Party Module Submission Form][module_submission]
+#### 共享
+  * [发布到 NPM][npm_tutorial]
+  * [package.json 标准定义][package_json_standard]
+  * [Tessel 项目页面][tessel_projects]
+  * [第三方模组提交表单][module_submission]
 
 [modules_page]: https://tessel.io/modules
 [third_party_modules]: https://tessel.io/modules#third-party
@@ -371,7 +373,7 @@ To help you get started creating your own custom modules, here is a list of the 
 [servo_module]: https://tessel.io/modules#module-servo
 [servo_schematic]: http://design-files.tessel.io.s3.amazonaws.com/2014.06.06/Modules/Servo/TM-03-03.pdf
 [climate_module]: https://tessel.io/modules#module-climate
-[pir_project]: https://tessel.io/modules#pir
+[pir_project]: https://projects.tessel.io/projects/pir
 [button_project_page]: https://projects.tessel.io/projects/button-proto-module/
 [orig_button_project_page]: https://projects.tessel.io/projects/a-button-on-tessel
 [comm_protocols]: https://tessel.io/docs/communicationProtocols
